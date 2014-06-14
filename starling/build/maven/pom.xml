@@ -7,11 +7,12 @@
 	<groupId>com.gamua</groupId>
 	<artifactId>starling-framework</artifactId>
 	<packaging>swc</packaging>
-	<version>1.5.2-SNAPSHOT</version>
+	<version>1.5.1</version>
 
 	<properties>
 		<flexmojos.version>6.0.1</flexmojos.version>
-		<flex.framework.version>4.9.1.1447119</flex.framework.version>
+		<flex.version>4.9.1.1447119</flex.version>
+        <air.version>13.0</air.version>
 		<playerglobal.version>11.7</playerglobal.version>
 	</properties>
 
@@ -30,18 +31,24 @@
 				<version>${flexmojos.version}</version>
 				<extensions>true</extensions>
 				<configuration>
-          <debug>false</debug>
+                <debug>false</debug>
 					<storepass/>
 					<skipTests>true</skipTests>
 					<skipTest>true</skipTest>
 				</configuration>
-				<dependencies>
-					<dependency>
-						<groupId>org.apache.flex</groupId>
-						<artifactId>compiler</artifactId>
-						<version>${flex.framework.version}</version>
-						<type>pom</type>
-					</dependency>
+                <dependencies>
+                    <dependency>
+                        <groupId>com.adobe.flex</groupId>
+                        <artifactId>compiler</artifactId>
+                        <version>${flex.version}</version>
+                        <type>pom</type>
+                    </dependency>
+                    <dependency>
+                        <groupId>com.adobe.air</groupId>
+                        <artifactId>compiler</artifactId>
+                        <version>${air.version}</version>
+                        <type>pom</type>
+                    </dependency>
 				</dependencies>
 			</plugin>
 		</plugins>
@@ -70,6 +77,7 @@
 				<updatePolicy>never</updatePolicy>
 			</snapshots>
 		</repository>
+
 		<repository>
 			<id>flex-mojos-repository</id>
 			<url>http://repository.sonatype.org/content/groups/flexgroup/</url>
