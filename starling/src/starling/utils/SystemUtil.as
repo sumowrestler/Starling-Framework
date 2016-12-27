@@ -1,7 +1,7 @@
 // =================================================================================================
 //
 //	Starling Framework
-//	Copyright 2014 Gamua OG. All Rights Reserved.
+//	Copyright Gamua GmbH. All Rights Reserved.
 //
 //	This program is free software. You can redistribute and/or modify it
 //	in accordance with the terms of the accompanying license agreement.
@@ -10,11 +10,14 @@
 
 package starling.utils
 {
+    import flash.display3D.Context3D;
     import flash.events.Event;
     import flash.events.EventDispatcher;
     import flash.system.Capabilities;
+    import flash.text.Font;
+    import flash.text.FontStyle;
     import flash.utils.getDefinitionByName;
-    
+
     import starling.errors.AbstractClassError;
 
     /** A utility class with methods related to the current platform and runtime. */
@@ -24,7 +27,11 @@ package starling.utils
         private static var sApplicationActive:Boolean = true;
         private static var sWaitingCalls:Array = [];
         private static var sPlatform:String;
+        private static var sDesktop:Boolean;
+        private static var sVersion:String;
         private static var sAIR:Boolean;
+        private static var sEmbeddedFonts:Array = null;
+        private static var sSupportsDepthAndStencil:Boolean = true;
         
         /** @private */
         public function SystemUtil() { throw new AbstractClassError(); }
@@ -37,15 +44,22 @@ package starling.utils
             
             sInitialized = true;
             sPlatform = Capabilities.version.substr(0, 3);
-            
+            sVersion = Capabilities.version.substr(4);
+            sDesktop = /(WIN|MAC|LNX)/.exec(sPlatform) != null;
+
             try
             {
                 var nativeAppClass:Object = getDefinitionByName("flash.desktop::NativeApplication");
                 var nativeApp:EventDispatcher = nativeAppClass["nativeApplication"] as EventDispatcher;
-                
+
                 nativeApp.addEventListener(Event.ACTIVATE, onActivate, false, 0, true);
                 nativeApp.addEventListener(Event.DEACTIVATE, onDeactivate, false, 0, true);
-                
+
+                var appDescriptor:XML = nativeApp["applicationDescriptor"];
+                var ns:Namespace = appDescriptor.namespace();
+                var ds:String = appDescriptor.ns::initialWindow.ns::depthAndStencil.toString().toLowerCase();
+
+                sSupportsDepthAndStencil = (ds == "true");
                 sAIR = true;
             }
             catch (e:Error)
@@ -59,8 +73,14 @@ package starling.utils
             sApplicationActive = true;
             
             for each (var call:Array in sWaitingCalls)
-                call[0].apply(null, call[1]);
-            
+            {
+                try { call[0].apply(null, call[1]); }
+                catch (e:Error)
+                {
+                    trace("[Starling] Error in 'executeWhenApplicationIsActive' call:", e.message);
+                }
+            }
+
             sWaitingCalls = [];
         }
         
@@ -102,7 +122,7 @@ package starling.utils
         public static function get isDesktop():Boolean
         {
             initialize();
-            return /(WIN|MAC|LNX)/.exec(sPlatform) != null;
+            return sDesktop;
         }
         
         /** Returns the three-letter platform string of the current system. These are
@@ -112,6 +132,66 @@ package starling.utils
         {
             initialize();
             return sPlatform;
+        }
+
+        /** Returns the Flash Player/AIR version string. The format of the version number is:
+         *  <em>majorVersion,minorVersion,buildNumber,internalBuildNumber</em>. */
+        public static function get version():String
+        {
+            initialize();
+            return sVersion;
+        }
+
+        /** Returns the value of the 'initialWindow.depthAndStencil' node of the application
+         *  descriptor, if this in an AIR app; otherwise always <code>true</code>. */
+        public static function get supportsDepthAndStencil():Boolean
+        {
+            return sSupportsDepthAndStencil;
+        }
+
+        /** Indicates if Context3D supports video textures. At the time of this writing,
+         *  video textures are only supported on Windows, OS X and iOS, and only in AIR
+         *  applications (not the Flash Player). */
+        public static function get supportsVideoTexture():Boolean
+        {
+            return Context3D["supportsVideoTexture"];
+        }
+
+        /** Updates the list of embedded fonts. To be called when a font is loaded at runtime. */
+        public static function updateEmbeddedFonts():void
+        {
+            sEmbeddedFonts = null; // will be updated in 'isEmbeddedFont()'
+        }
+
+        /** Figures out if an embedded font with the specified style is available.
+         *  The fonts are enumerated only once; if you load a font at runtime, be sure to call
+         *  'updateEmbeddedFonts' before calling this method.
+         *
+         *  @param fontName  the name of the font
+         *  @param bold      indicates if the font has a bold style
+         *  @param italic    indicates if the font has an italic style
+         *  @param fontType  the type of the font (one of the constants defined in the FontType class)
+         */
+        public static function isEmbeddedFont(fontName:String, bold:Boolean=false, italic:Boolean=false,
+                                              fontType:String="embedded"):Boolean
+        {
+            if (sEmbeddedFonts == null)
+                sEmbeddedFonts = Font.enumerateFonts(false);
+
+            for each (var font:Font in sEmbeddedFonts)
+            {
+                var style:String = font.fontStyle;
+                var isBold:Boolean = style == FontStyle.BOLD || style == FontStyle.BOLD_ITALIC;
+                var isItalic:Boolean = style == FontStyle.ITALIC || style == FontStyle.BOLD_ITALIC;
+
+                if (fontName == font.fontName && bold == isBold && italic == isItalic &&
+                    fontType == font.fontType)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }
